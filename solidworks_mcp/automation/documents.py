@@ -30,6 +30,17 @@ class DocumentOperations:
     - self._units: UnitConverter instance
     """
     
+    def _sw_default_template(self, pref_id: int) -> str:
+        """Default template configured in SolidWorks itself
+        (swDefaultTemplatePart=8, Assembly=9, Drawing=10). Works for SW 2026."""
+        try:
+            path = self._sw_app.GetUserPreferenceStringValue(pref_id)
+            if path and os.path.exists(path):
+                return path
+        except Exception as e:
+            logger.debug(f"GetUserPreferenceStringValue({pref_id}) failed: {e}")
+        return ""
+
     def create_new_part(self) -> Dict:
         """
         Create a new part document
@@ -44,7 +55,7 @@ class DocumentOperations:
                     return r
             
             # Find part template
-            template = find_template("part")
+            template = self._sw_default_template(8) or find_template("part")
             if not template:
                 template = ""  # Let SolidWorks use default
                 logger.info("Using SolidWorks default part template")
@@ -88,7 +99,7 @@ class DocumentOperations:
                 if not r["success"]:
                     return r
             
-            template = find_template("assembly")
+            template = self._sw_default_template(9) or find_template("assembly")
             if not template:
                 template = ""
             
@@ -130,7 +141,7 @@ class DocumentOperations:
                 if not r["success"]:
                     return r
             
-            template = find_template("drawing")
+            template = self._sw_default_template(10) or find_template("drawing")
             if not template:
                 template = ""
             

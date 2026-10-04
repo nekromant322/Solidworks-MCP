@@ -54,13 +54,10 @@ class SolidWorksFinder:
     ]
     
     # ProgramData template paths
+    # Newest first (covers SOLIDWORKS 2026 and later)
     PROGRAMDATA_TEMPLATE_PATHS = [
-        r"C:\ProgramData\SolidWorks\SOLIDWORKS 2025\templates",
-        r"C:\ProgramData\SolidWorks\SOLIDWORKS 2024\templates",
-        r"C:\ProgramData\SolidWorks\SOLIDWORKS 2023\templates",
-        r"C:\ProgramData\SolidWorks\SOLIDWORKS 2022\templates",
-        r"C:\ProgramData\SolidWorks\SOLIDWORKS\templates",
-    ]
+        rf"C:\ProgramData\SolidWorks\SOLIDWORKS {y}\templates" for y in range(2030, 2019, -1)
+    ] + [r"C:\ProgramData\SolidWorks\SOLIDWORKS\templates"]
     
     @classmethod
     def find(cls) -> Optional[str]:
@@ -95,6 +92,25 @@ class SolidWorksFinder:
         if not HAS_WINREG:
             return None
         
+        # Modern layout: HKLM\SOFTWARE\SolidWorks\SOLIDWORKS 2026\Setup -> "SolidWorks Folder"
+        for root in (r"SOFTWARE\SolidWorks", r"SOFTWARE\WOW6432Node\SolidWorks"):
+            try:
+                with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, root) as key:
+                    names = sorted((n for n in cls._get_registry_subkeys(key)
+                                    if n.upper().startswith("SOLIDWORKS 20")), reverse=True)
+                    for name in names:
+                        try:
+                            with winreg.OpenKey(key, name + r"\Setup") as setup:
+                                folder, _ = winreg.QueryValueEx(setup, "SolidWorks Folder")
+                                exe = os.path.join(folder, "SLDWORKS.exe")
+                                if os.path.exists(exe):
+                                    logger.info(f"Found {name} in registry: {exe}")
+                                    return exe
+                        except OSError:
+                            continue
+            except OSError:
+                continue
+
         for reg_info in cls.REGISTRY_PATHS:
             if reg_info is None:
                 continue
