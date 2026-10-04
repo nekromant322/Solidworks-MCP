@@ -54,6 +54,25 @@ class SketchOperations:
             )
             
             if not result:
+                # Localized SOLIDWORKS (e.g. Russian: Спереди/Сверху/Справа):
+                # take the N-th default reference plane by feature order.
+                idx = {"front": 0, "top": 1, "right": 2}.get(str(plane).lower().replace(" plane", ""))
+                feat = doc.FirstFeature
+                planes = []
+                while feat is not None and len(planes) < 3:
+                    try:
+                        if feat.GetTypeName2 == "RefPlane":
+                            planes.append(feat)
+                    except Exception:
+                        pass
+                    feat = feat.GetNextFeature
+                if idx is not None and idx < len(planes):
+                    doc.ClearSelection2(True)
+                    result = planes[idx].Select2(False, 0)
+                    if result:
+                        plane_name = planes[idx].Name
+
+            if not result:
                 return self._result(False, f"Could not select {plane_name}",
                                   SwErrors.swSelectionError)
             

@@ -245,6 +245,18 @@ class SolidWorksFinder:
                 logger.info(f"Found {template_type} template in ProgramData: {template_path}")
                 return template_path
         
+        # Localized installs ship differently named templates (e.g. "gost-part.prtdot")
+        import glob
+        ext = os.path.splitext(template_name)[1]
+        prefer = {"part": ("part", "дет"), "assembly": ("ass", "сбор"), "drawing": ("drw", "черт")}
+        for pdata_path in cls.PROGRAMDATA_TEMPLATE_PATHS:
+            found = sorted(glob.glob(os.path.join(pdata_path, "*" + ext)))
+            if found:
+                keys = prefer.get(template_type.lower(), ())
+                found.sort(key=lambda f: not any(k in os.path.basename(f).lower() for k in keys))
+                logger.info(f"Using {template_type} template: {found[0]}")
+                return found[0]
+
         logger.warning(f"Template not found: {template_type}")
         return None
     
